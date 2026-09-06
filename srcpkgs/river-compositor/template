@@ -17,6 +17,7 @@ changelog="https://codeberg.org/river/river/releases"
 distfiles="https://codeberg.org/river/river/releases/download/v${version}/river-${version}.tar.gz"
 checksum=6d4030526e307e40de357167b4d6daacb583aed353dd93e32e1314c2d34400fa
 replaces="river>=0"
+nocross=yes
 build_options="xwayland"
 build_options_default="xwayland"
 desc_option_xwayland="Enable Xwayland support"
