@@ -215,6 +215,7 @@ on:
         - lycan
         - menu-themes
         - mesa-amber
+        - morgenwm
         - nebula-gtk
         - NuvioDesktop
         - nvchecker
