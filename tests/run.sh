@@ -611,5 +611,64 @@ _cnc_visited=" pkg_guard"
 _check_nocross_chain pkg_guard; assert_rc $? 1
 
 echo
+echo '== close-update-issues.py =='
+
+if command -v python3 >/dev/null 2>&1; then
+	_cui_wd=$(mktemp -d)
+	mkdir -p "$_cui_wd/results/build-results-x86_64" \
+		"$_cui_wd/results/build-results-aarch64"
+	printf 'zen-browser-bin\t1.22.1\tok\nz-fail\t1.0\tok\nbump\t3.2.1\tskip\n' \
+		> "$_cui_wd/results/build-results-x86_64/results.tsv"
+	printf 'zen-browser-bin\t1.22.1\tok\nz-fail\t1.0\tfail\nbump\t3.2.1\tok\n' \
+		> "$_cui_wd/results/build-results-aarch64/results.tsv"
+
+	it 'results: ok/fail versions collected per pkg'
+	assert_eq "$(python3 -c '
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("cui", sys.argv[1])
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+ok, fail = m.collect_results(sys.argv[2])
+print("zok=" + ",".join(sorted(ok.get("zen-browser-bin", []))))
+print("zfail=" + ",".join(sorted(fail.get("z-fail", []))))
+print("bump=" + ",".join(sorted(ok.get("bump", []))))
+' "$SCRIPT_DIR/src/close-update-issues.py" "$_cui_wd/results")" "$(printf 'zok=1.22.1\nzfail=1.0\nbump=3.2.1')"
+
+	it 'issue body: hidden markers + heading fallback parsed'
+	assert_eq "$(python3 -c '
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("cui", sys.argv[1])
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+body = "**Package:** `zen-browser-bin`\n\n**Upstream version:** `1.22.1`\n\n<!-- package-update:zen-browser-bin -->\n<!-- upstream-version:1.22.1 -->"
+print(m.extract_pkg_version(body))
+' "$SCRIPT_DIR/src/close-update-issues.py")" "('zen-browser-bin', '1.22.1')"
+
+	it 'issue body: no markers returns None,None'
+	assert_eq "$(python3 -c '
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("cui", sys.argv[1])
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+print(m.extract_pkg_version("no markers here"))
+' "$SCRIPT_DIR/src/close-update-issues.py")" '(None, None)'
+
+	it 'results: missing dir yields empty maps, no crash'
+	assert_eq "$(python3 -c '
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("cui", sys.argv[1])
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+print(m.collect_results(sys.argv[2]) == ({}, {}))
+' "$SCRIPT_DIR/src/close-update-issues.py" "$_cui_wd/nope")" "True"
+
+	it 'cli: --help exits 0'
+	python3 "$SCRIPT_DIR/src/close-update-issues.py" --help >/dev/null 2>&1
+	assert_rc $? 0
+else
+	echo '  (skipped: python3 not on PATH)'
+fi
+
+echo
 printf 'Passed: %s    Failed: %s\n' "$_PASS" "$_FAIL"
 [ "$_FAIL" -eq 0 ] || exit 1

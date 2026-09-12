@@ -87,7 +87,7 @@ usage() {
 	prog=${0##*/}
 	cat <<-EOF
 	Usage: $prog -h | -u | -w | -m | -p | -s | -a | -c | -i | -o | -l | -t
-	       $prog {update|build|main|upload|serve|archs|check-upstream|init|add-oco|shlibs|test|help}
+	       $prog {update|build|main|upload|serve|archs|check-upstream|init|add-oco|shlibs|test|autobump|help}
 
 	Manage the OCO repository.
 
@@ -107,6 +107,9 @@ usage() {
 	  -s, --serve          Serve website locally on port 8000
 	  -p, --upload         Upload built packages to WebDAV repository
 	  -t, --test <pkg...>  Without <pkg> gum menu to choose, then trigger GitHub CI build
+	  autobump <pkg> [--force]
+	                      Autobump a package via GitHub workflow_dispatch
+	                      (--force ignores src/autobump-pkgs whitelist)
 
 	Compound: $prog -uw   (update + build)
 
@@ -1236,6 +1239,62 @@ do_test() {
 	fi
 }
 
+do_autobump() {
+	command -v gh >/dev/null 2>&1 || fatal 'gh CLI is required: https://cli.github.com/'
+	command -v gum >/dev/null 2>&1 \
+		|| fatal 'gum is required for the interactive picker: https://github.com/charmbracelet/gum'
+
+	_repo=$(_gh_repo_slug)
+	[ -n "$_repo" ] || fatal 'could not determine GitHub repository (add the "gh" git remote)'
+	_ref="${TEST_REF:-$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo OCO)}"
+
+	_pkg=''
+	_force=0
+	for _a in "$@"; do
+		case "$_a" in
+			--force|-f) _force=1 ;;
+			-*) fatal "unknown option: $_a" ;;
+			*) [ -n "$_pkg" ] && fatal "only one package allowed: $_a"; _pkg="$_a" ;;
+		esac
+	done
+
+	if [ -z "$_pkg" ]; then
+		_tpls=$(_all_templates)
+		[ -n "$_tpls" ] || fatal 'no templates found in srcpkgs'
+		_pkg=$(printf '%s\n' "$_tpls" \
+			| gum filter --reverse --limit 1 --header 'Select a template to autobump') \
+			|| { _y 'Aborted'; return 1; }
+	fi
+	[ -d "${SCRIPT_DIR}/${SRCPKGS}/${_pkg}" ] || fatal "template not found: ${_pkg}"
+
+	echo ''
+	_b '==> Dispatching autobump on GitHub'
+	echo "  Repository: $_repo"
+	echo "  Branch:     $_ref"
+	echo "  Package:    $_pkg"
+	[ "$_force" = 1 ] && echo '  Force:      yes (ignore src/autobump-pkgs whitelist)'
+	echo ''
+
+	if [ "$_force" = 1 ]; then
+		gh workflow run autobump.yml --repo "$_repo" --ref "$_ref" \
+			-f "pkg=$_pkg" -f "force=true"
+	else
+		gh workflow run autobump.yml --repo "$_repo" --ref "$_ref" \
+			-f "pkg=$_pkg"
+	fi
+	[ $? -eq 0 ] || fatal 'failed to dispatch workflow (check gh auth / permissions)'
+
+	_run_id=$(gh run list --workflow=autobump.yml --branch "$_ref" --limit 1 \
+		--json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
+	_g '==> Autobump dispatched'
+	if [ -n "$_run_id" ]; then
+		_y "    Run:     https://github.com/${_repo}/actions/runs/${_run_id}"
+		echo "    Watch:   gh run watch $_run_id --repo $_repo"
+	else
+		echo '    See:   gh run list --workflow autobump.yml'
+	fi
+}
+
 # --- Main ---
 
 main() {
@@ -1252,6 +1311,7 @@ main() {
 		add-oco)              set -- -o ;;
 		to-void)              shift; do_to_void "$@"; return 0 ;;
 		to-oco)               shift; do_to_oco "$@"; return 0 ;;
+		autobump)             shift; do_autobump "$@"; return 0 ;;
 		shlibs)               set -- -l ;;
 		test)                 shift; set -- -t "$@" ;;
 	esac

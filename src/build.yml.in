@@ -65,6 +65,7 @@ permissions:
   contents: write
   pull-requests: read
   packages: read
+  issues: write
 
 concurrency:
   group: >-
@@ -610,3 +611,13 @@ jobs:
             -u ":${SURFER_TOKEN}"
           cd extra
           ./ocoman -u
+
+      - name: Close resolved update issues
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.BOT }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python3 extra/src/close-update-issues.py extra/results \
+            --repo "$GH_REPO" --token "$GH_TOKEN"
