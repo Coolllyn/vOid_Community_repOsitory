@@ -1,14 +1,14 @@
 # Template file for 'fcitx5-lotus'
 pkgname=fcitx5-lotus
 version=3.5.9
-revision=1
+revision=2
 _bamboo_commit="f976d2d1f639fca86f798a8f978b6883c854d45b"
 archs="~*-musl"
 build_style=cmake
 pycompile_dirs="usr/share/${pkgname}/settings-gui"
 configure_args="-DLOTUS_UINPUT_PROXY_USER=_uinput_proxy -DINSTALL_RUNIT=ON -DRUNIT_SV_DIR=/usr/share/examples/sv -DLOTUS_BYTECOMPILE_PYTHON=OFF"
 hostmakedepends="extra-cmake-modules pkg-config gettext go python3 librsvg-utils"
-makedepends="libfcitx5-devel libinput-devel eudev-libudev-devel acl-devel libX11-devel"
+makedepends="libfcitx5-devel libinput-devel eudev-libudev-devel acl-devel"
 depends="fcitx5 acl acl-progs"
 checkdepends="fcitx5 iso-codes xkeyboard-config"
 short_desc="Fcitx5 - Vietnamese IME"
@@ -49,13 +49,6 @@ pre_build() {
 }
 
 do_check() {
-	# The headless integration tests build a real LotusEngine, whose Go core
-	# silently returns a null handle when the Vietnamese dictionary is missing
-	# via fcitx5 StandardPaths (PkgData: lotus/vietnamese.cm.dict). That file
-	# is only placed after installation (upstream CI runs 'cmake --install'
-	# before ctest), so expose it from the source tree through a temporary
-	# XDG_DATA_DIRS entry. Without this every key event is silently dropped
-	# and 5 integration tests fail with "key was not accepted".
 	local _lotus_share="${wrksrc}/.lotus-check/share"
 	mkdir -p "${_lotus_share}/fcitx5/lotus"
 	cp "${wrksrc}/data/dictionaries/vietnamese.cm.dict" \
@@ -72,5 +65,14 @@ fcitx5-lotus-settings_package() {
 		vmove usr/bin/fcitx5-lotus-settings
 		vmove usr/share/fcitx5-lotus/settings-gui
 		vmove usr/share/applications/org.fcitx.Fcitx5.Addon.Lotus.Settings.desktop
+	}
+}
+
+fcitx5-lotus-breeze_package() {
+	short_desc+=" - Breeze icons"
+	depends="${sourcepkg}>=${version}_${revision}"
+	pkg_install() {
+		vmove usr/share/icons/breeze
+		vmove usr/share/icons/breeze-dark
 	}
 }
