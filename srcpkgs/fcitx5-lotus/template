@@ -6,11 +6,10 @@ _bamboo_commit="f976d2d1f639fca86f798a8f978b6883c854d45b"
 archs="~*-musl"
 build_style=cmake
 pycompile_dirs="usr/share/${pkgname}/settings-gui"
-configure_args="-DLOTUS_UINPUT_PROXY_USER=_uinput_proxy -DINSTALL_RUNIT=ON -DRUNIT_SV_DIR=/usr/share/examples/sv -DLOTUS_BYTECOMPILE_PYTHON=OFF"
+configure_args="-DLOTUS_UINPUT_PROXY_USER=_uinput_proxy -DINSTALL_RUNIT=ON -DRUNIT_SV_DIR=/usr/share/examples/sv -DLOTUS_BYTECOMPILE_PYTHON=OFF -DBUILD_TESTING=ON"
 hostmakedepends="extra-cmake-modules pkgconf gettext go python3 librsvg-utils"
 makedepends="libfcitx5-devel libinput-devel eudev-libudev-devel"
 depends="fcitx5 acl-progs"
-checkdepends="fcitx5 iso-codes xkeyboard-config"
 short_desc="Fcitx5 - Vietnamese IME"
 maintainer="Coolllyn <leanhduc673@gmail.com>"
 license="GPL-3.0-or-later"
@@ -24,12 +23,6 @@ skip_extraction="bamboo-core-${_bamboo_commit}.tar.gz"
 
 system_accounts="_uinput_proxy"
 _uinput_proxy_groups="input"
-
-if [ -n "$XBPS_CHECK_PKGS" ]; then
-	configure_args+=" -DBUILD_TESTING=ON"
-else
-	configure_args+=" -DBUILD_TESTING=OFF"
-fi
 
 post_extract() {
 	vsrcextract -C bamboo/bamboo-core "bamboo-core-${_bamboo_commit}.tar.gz"
