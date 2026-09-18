@@ -61,12 +61,8 @@ for pkg in $PKGS; do
 				arch_flag="-A aarch64 -a aarch64-musl"
 				;;
 			*)
-				_cnc_visited=""
-				if _check_nocross_chain "$pkg"; then
-					arch_flag="-A $ARCH"
-				else
-					arch_flag="-a $ARCH"
-				fi
+				# - Avoid '-A' (amd64 runners lack qemu binfmt -> 'Exec format error').
+				arch_flag="-a $ARCH"
 				;;
 		esac
 	fi
