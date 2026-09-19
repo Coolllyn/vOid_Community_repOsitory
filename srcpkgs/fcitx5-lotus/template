@@ -53,6 +53,11 @@ post_extract() {
 	vsrcextract -C bamboo/bamboo-core "bamboo-core-${_bamboo_commit}.tar.gz"
 }
 
+post_patch() {
+	vsed -i 's/-buildmode=c-archive/-buildmode=c-archive -buildvcs=false/g' bamboo/CMakeLists.txt
+	vsed -i 's/\${BAMBOO_GO_SRCS}/./g' bamboo/CMakeLists.txt
+}
+
 do_check() {
 	local _lotus_share="${wrksrc}/.lotus-check/share"
 	mkdir -p "${_lotus_share}/fcitx5/lotus"
