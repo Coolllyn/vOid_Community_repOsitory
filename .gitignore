@@ -324,6 +324,7 @@ src/__pycache__/
 !/srcpkgs/wpgtk
 !/srcpkgs/xdg-desktop-portal-cosmic
 !/srcpkgs/xdg-desktop-portal-hyprland
+!/srcpkgs/xdg-desktop-portal-umbriel-git
 !/srcpkgs/xut
 !/srcpkgs/xxtools-git
 !/srcpkgs/zen-browser-bin
