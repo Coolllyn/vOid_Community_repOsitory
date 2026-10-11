@@ -1,0 +1,25 @@
+pkgname=umbriel-git
+version=0.1.0.20261011
+revision=1
+_commit=2339fc37297b15286efb801f071792512feabf77
+build_style=meson
+configure_args="-Dtests=disabled"
+hostmakedepends="pkgconf wayland-devel"
+makedepends="wlroots0.20-devel wayland-devel wayland-protocols libxkbcommon-devel
+ libinput-devel pixman-devel cairo-devel pango-devel libdrm-devel
+ libdisplay-info-devel eudev-libudev-devel libxcb-devel xcb-util-wm-devel
+ libglvnd-devel libgbm-devel lcms2-devel jemalloc-devel tomlplusplus-devel
+ json-c++"
+depends="xorg-server-xwayland virtual?font:sans-serif"
+short_desc="Wayland compositor built on wlroots"
+maintainer="Coolllyn <leanhduc673@gmail.com>"
+license="MIT"
+homepage="https://github.com/noctalia-dev/umbriel"
+distfiles="${homepage}/archive/${_commit}.tar.gz"
+checksum=cebb8465feb9c9d63fa56f0558b1c7449ffc9da7809034920f0d865df78de368
+# The compositor has no test suite in release mode and no do_check target.
+make_check=no
+
+post_install() {
+        vlicense LICENSE
+}
