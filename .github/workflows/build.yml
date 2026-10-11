@@ -240,6 +240,7 @@ on:
         - nano-syntax-highlighting
         - nebula-gtk
         - noctalia
+        - noctalia-greeter
         - NuvioDesktop
         - nvchecker
         - nwg-bar
