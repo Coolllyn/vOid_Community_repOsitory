@@ -2,7 +2,7 @@
 pkgname=gofer
 reverts="1.0.0_1"
 version=0.5.1
-revision=1
+revision=2
 build_style=go
 go_import_path="gofer"
 short_desc="Fast, minimal application launcher written in pure Go. Supports both Way"
