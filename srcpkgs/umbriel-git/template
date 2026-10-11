@@ -21,9 +21,9 @@ checksum=cebb8465feb9c9d63fa56f0558b1c7449ffc9da7809034920f0d865df78de368
 
 if [ "$XBPS_TARGET_LIBC" = glibc ]; then
 	makedepends+=" jemalloc-devel"
-	configure_args+=" -Duse_jemalloc=enabled"
+	configure_args+=" -Djemalloc=enabled"
 else
-	configure_args+=" -Duse_jemalloc=disabled"
+	configure_args+=" -Djemalloc=disabled"
 fi
 
 # The compositor has no test suite in release mode and no do_check target.
