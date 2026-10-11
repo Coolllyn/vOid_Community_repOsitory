@@ -24,9 +24,9 @@ checksum=5418f6b759de96e56a4bbca809c5a4c60a8a9594bdf67ecb8c5a341f97c221d1
 
 if [ "$XBPS_TARGET_LIBC" = glibc ]; then
 	makedepends+=" jemalloc-devel"
-	configure_args+=" -Duse_jemalloc=enabled"
+	configure_args+=" -Djemalloc=enabled"
 else
-	configure_args+=" -Duse_jemalloc=disabled"
+	configure_args+=" -Djemalloc=disabled"
 fi
 
 if [ "$XBPS_CHECK_PKGS" ]; then
