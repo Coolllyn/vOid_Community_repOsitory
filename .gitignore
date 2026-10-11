@@ -306,6 +306,7 @@ src/__pycache__/
 !/srcpkgs/tuios
 !/srcpkgs/tuisic
 !/srcpkgs/typobuster
+!/srcpkgs/umbriel-git
 !/srcpkgs/undelete-btrfs
 !/srcpkgs/vbm
 !/srcpkgs/vibepanel
