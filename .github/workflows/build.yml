@@ -239,6 +239,7 @@ on:
         - morgenwm
         - nano-syntax-highlighting
         - nebula-gtk
+        - noctalia
         - NuvioDesktop
         - nvchecker
         - nwg-bar

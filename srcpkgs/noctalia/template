@@ -1,0 +1,46 @@
+# Template file for 'noctalia'
+pkgname=noctalia
+version=5.2.1
+revision=1
+build_style=meson
+build_helper=qemu
+hostmakedepends="pkgconf wayland-devel"
+makedepends="basu-devel cairo-devel fontconfig-devel freetype-devel glib-devel
+ harfbuzz-devel json-c++ libcurl-devel libepoxy-devel libglvnd-devel
+ libmd4c-devel libqalculate-devel librsvg-devel libsodium-devel libwebp-devel
+ libxkbcommon-devel libxml2-devel libsecret-devel libjxl-devel MesaLib-devel
+ pam-devel pango-devel libsndfile-devel pipewire-devel polkit-devel
+ sdbus-c++-devel stb tomlplusplus-devel libical-devel wayland-devel
+ wayland-protocols wireplumber-devel"
+depends="git sound-theme-freedesktop"
+checkdepends="git dejavu-fonts-ttf dbus"
+short_desc="Sleek, customizable desktop shell crafted for Wayland"
+maintainer="Coolllyn <leanhduc673@gmail.com>"
+license="MIT"
+homepage="https://noctalia.dev"
+changelog="https://github.com/noctalia-dev/noctalia/releases"
+distfiles="https://github.com/noctalia-dev/noctalia/archive/refs/tags/v${version}.tar.gz"
+checksum=5418f6b759de96e56a4bbca809c5a4c60a8a9594bdf67ecb8c5a341f97c221d1
+
+if [ "$XBPS_TARGET_LIBC" = glibc ]; then
+	makedepends+=" jemalloc-devel"
+	configure_args+=" -Duse_jemalloc=enabled"
+else
+	configure_args+=" -Duse_jemalloc=disabled"
+fi
+
+if [ "$XBPS_CHECK_PKGS" ]; then
+	configure_args+=" -Dtests=enabled"
+else
+	configure_args+=" -Dtests=disabled"
+fi
+
+post_install() {
+	vlicense LICENSE
+	vsconf example.toml
+
+	for shell in bash fish zsh; do
+		vtargetrun ${DESTDIR}/usr/bin/noctalia completions ${shell} > noctalia.${shell}
+		vcompletion noctalia.${shell} ${shell}
+	done
+}
