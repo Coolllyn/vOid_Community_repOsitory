@@ -348,6 +348,7 @@ on:
         - wpgtk
         - xdg-desktop-portal-cosmic
         - xdg-desktop-portal-hyprland
+        - xdg-desktop-portal-umbriel-git
         - xut
         - xxtools-git
         - zen-browser-bin
