@@ -23,6 +23,10 @@ permissions:
   contents: read
   packages: read
 
+concurrency:
+  group: cleanup-repodata
+  cancel-in-progress: false
+
 jobs:
   cleanup:
     name: ${{ matrix.arch }}
@@ -46,12 +50,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # `ocoman -p` does the whole purge by itself: it fetches the remote
-      # repodata, deletes orphan .xbps/.sig2 files, strips the removed names
-      # out of index.plist, re-signs and uploads the index. Do NOT download
-      # ${ARCH}-repodata here -- there is no ${ARCH}-repodata.sig2 on the
-      # server (xbps-rindex -s embeds the signature in stage.plist), so any
-      # step that fetches one fails with 404.
       - name: Purge removed packages from repodata
         env:
           SURFER_TOKEN: ${{ secrets.SURFER_TOKEN }}
