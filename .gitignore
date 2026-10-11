@@ -215,6 +215,7 @@ src/__pycache__/
 !/srcpkgs/morgenwm
 !/srcpkgs/nano-syntax-highlighting
 !/srcpkgs/nebula-gtk
+!/srcpkgs/noctalia
 !/srcpkgs/NuvioDesktop
 !/srcpkgs/nvchecker
 !/srcpkgs/nwg-bar
