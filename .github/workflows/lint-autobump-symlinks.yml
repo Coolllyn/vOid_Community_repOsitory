@@ -1,10 +1,4 @@
-name: lint-autobump-symlinks
-
-# srcpkgs/ carries ~90 symlinked aliases (libpng-devel -> libpng,
-# brave-browser-bin-qt5 -> brave-browser-bin, ...). One alias in
-# src/autobump-pkgs is enough to make autobump rewrite the wrong template, so
-# the whitelist is checked instead of trusted.
-
+name: 🔎
 on:
   push:
     branches: [OCO]
@@ -32,7 +26,7 @@ concurrency:
 
 jobs:
   lint:
-    name: Lint src/autobump-pkgs
+    name: Lint autobump-pkgs
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -40,4 +34,11 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Run symlink lint
-        run: .github/scripts/lint-autobump-symlinks.sh
+        run: |
+          .github/scripts/lint-autobump-symlinks.sh 2>&1 | tee -a TMP
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo '### error:  ' >> "$GITHUB_STEP_SUMMARY"
+            grep -i 'error:' TMP | cut -d' ' -f2 | cut -d'/' -f2 >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$status"

@@ -1,9 +1,4 @@
-name: autobump
-
-# Rewrites a template's version= / revision= / checksum= and opens a PR.
-#   detect-update.sh  candidate version, from the template's `update` file
-#   bump-template.sh  version=/revision=/checksum= rewrite
-
+name: 🛰️
 on:
   issues:
     types: [opened, labeled, edited]
@@ -18,19 +13,17 @@ on:
         required: false
         default: false
         type: boolean
-
 permissions:
   contents: write
   issues: write
   pull-requests: write
-
 concurrency:
   group: autobump-${{ inputs.pkg || github.event.issue.number }}
   cancel-in-progress: true
 
 jobs:
   autobump:
-    name: Autobump ${{ inputs.pkg || github.event.issue.number }}
+    name: 🛰️ ${{ inputs.pkg || github.event.issue.number }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     if: github.event_name == 'workflow_dispatch' || contains(github.event.issue.labels.*.name, 'package-update')

@@ -1,5 +1,4 @@
-name: tooling validation
-
+name: 🧰
 on:
   push:
     branches: [OCO]
@@ -20,13 +19,12 @@ on:
       - 'src/*.py'
       - 'tests/**'
       - '.github/workflows/**'
-
 permissions:
   contents: read
 
 jobs:
   helper-tests:
-    name: helper and tooling tests
+    name: 🧰
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
