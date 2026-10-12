@@ -1,4 +1,4 @@
-name: 🏗️
+name: 🏗️ build
 run-name: >-
   ${{
     github.event_name == 'workflow_dispatch' &&

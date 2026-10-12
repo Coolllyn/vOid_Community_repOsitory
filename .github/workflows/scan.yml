@@ -1,4 +1,4 @@
-name: 🔬
+name: 🔬 update scan
 run-name: >-
   ${{
     github.event_name == 'workflow_dispatch' && (inputs.pkg != '' && format('🔬 {0}', inputs.pkg) ||

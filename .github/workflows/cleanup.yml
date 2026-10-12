@@ -1,4 +1,4 @@
-name: 🧹
+name: 🧹 cleanup
 run-name: >-
   ${{
     inputs.packages != '' && format('🧹 {0}', inputs.packages) ||

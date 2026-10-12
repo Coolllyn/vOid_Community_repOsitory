@@ -1,4 +1,4 @@
-name: 🛰️
+name: 🛰️ autobump
 run-name: >-
   ${{
     github.event_name == 'workflow_dispatch' && format('🛰️ {0}', inputs.pkg) ||
