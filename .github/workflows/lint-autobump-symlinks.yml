@@ -1,4 +1,15 @@
 name: 🔎
+run-name: >-
+  ${{
+    github.event_name == 'workflow_dispatch' && '🔎 manual' ||
+    github.event_name == 'push' && github.event.head_commit.message ||
+    github.event_name == 'pull_request' &&
+    format('🔎 {0} (#{1})',
+      github.event.pull_request.title,
+      github.event.pull_request.number) ||
+    github.event_name == 'schedule' && '🔎 scheduled' ||
+    '🔎'
+  }}
 on:
   push:
     branches: [OCO]

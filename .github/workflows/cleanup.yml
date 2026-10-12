@@ -1,4 +1,10 @@
-name: Cleanup repository
+name: 🧹
+run-name: >-
+  ${{
+    inputs.packages != '' &&
+    format('🧹 {0}', inputs.packages) ||
+    '🧹 auto-detect'
+  }}
 
 on:
   workflow_call:
@@ -18,11 +24,9 @@ on:
           Empty = auto-detect packages without a template
         required: false
         default: ''
-
 permissions:
   contents: read
   packages: read
-
 concurrency:
   group: cleanup-repodata
   cancel-in-progress: false

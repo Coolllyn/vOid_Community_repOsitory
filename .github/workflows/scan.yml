@@ -1,19 +1,6 @@
 name: scan updates
-
-# Opens a `package-update` issue for every whitelisted template that has a
-# newer upstream release. Detection only -- no privileged container, no
-# bootstrap, no template editing: autobump.yml reacts to the issue and does
-# the actual version/checksum rewrite.
-#
-# The candidate versions come from ./xbps-src update-check, i.e. from each
-# template's own `update` file (site/pattern/ignore). Nothing here guesses from
-# release flags: GitHub's `prerelease` field says false for brave v1.99.31
-# while /releases/latest is still v1.97.56, so flag filtering bumps too much.
-
 on:
   schedule:
-    # 04:17 UTC -- off the :00 spike, the version sites we poll have no
-    # published rate limits for us but do share runner IPs with other jobs.
     - cron: '17 4 * * *'
   workflow_dispatch:
     inputs:
@@ -22,11 +9,9 @@ on:
         required: false
         default: ''
         type: string
-
 permissions:
   contents: read
   issues: write
-
 concurrency:
   group: scan-updates
   cancel-in-progress: false
@@ -62,9 +47,6 @@ jobs:
           echo "Scanning ${#pkgs[@]} template(s)"
 
           for pkg in "${pkgs[@]}"; do
-            # srcpkgs holds symlinked aliases (hyprland-devel, libpng-devel,
-            # sfizz-*). detect-update.sh refuses them, but check here too so
-            # the lint and the scanner agree on what is bumpable.
             if [ -L "srcpkgs/$pkg" ]; then
               echo "::notice::$pkg is a symlinked alias, skipping"
               continue
@@ -102,8 +84,6 @@ jobs:
 
           workflow_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/scan.yml"
 
-          # Read the current open package-update issues once. Repeated scans
-          # must not create another issue for the same package/version.
           gh issue list --repo "$GITHUB_REPOSITORY" --state open \
             --label package-update --limit 1000 --json body,title >out/open-issues.json
 
@@ -116,8 +96,6 @@ jobs:
               continue
             fi
 
-            # One issue per package: autobump.yml is triggered per issue, so a
-            # shared table would make every issue bump every package.
             cat >out/issue.md <<EOF
           **Package:** \`$pkg\`
 

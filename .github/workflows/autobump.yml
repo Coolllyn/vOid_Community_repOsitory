@@ -1,4 +1,14 @@
 name: 🛰️
+run-name: >-
+  ${{
+    github.event_name == 'workflow_dispatch' &&
+    format('🛰️ {0}', inputs.pkg) ||
+    github.event_name == 'issues' &&
+    format('🛰️ {0} (#{1})',
+      github.event.issue.title,
+      github.event.issue.number) ||
+    '🛰️'
+  }}
 on:
   issues:
     types: [opened, labeled, edited]
@@ -146,12 +156,6 @@ jobs:
               echo "::error::cannot post a version-scoped skip marker without REQUEST_VER"
               exit 1
             fi
-            printf 'Autobump skipped: **%s** is not listed in `src/autobump-pkgs`.\n\nAdd the template there to enable automatic updates.\n\n<!-- autobump:skip for %s -->\n' \
-              "$TEMPLATE" "$REQUEST_VER" >"$RUNNER_TEMP/comment.md"
-            gh api "repos/${GH_REPO}/issues/${ISSUE_NUMBER}/comments" \
-              --method POST -F body=@"$RUNNER_TEMP/comment.md" || true
-          else
-            echo "Autobump skipped: $TEMPLATE not in src/autobump-pkgs (use force to override)"
           fi
 
       - name: Detect newer version
@@ -201,12 +205,11 @@ jobs:
           echo "version=$version" >>"$GITHUB_OUTPUT"
           echo "bumped=true" >>"$GITHUB_OUTPUT"
 
-      - name: Comment when nothing to bump
+      - name: Nothing to bump
         if: steps.marker.outputs.handled == 'false' && steps.whitelist.outputs.in_list == 'true' && steps.bump.outputs.bumped != 'true'
         env:
           GH_TOKEN: ${{ secrets.BOT }}
           NEW_VERSION: ${{ steps.detect.outputs.new }}
-          REQUEST_VER: ${{ steps.marker.outputs.request_ver }}
         run: |
           set -euo pipefail
 
@@ -215,19 +218,6 @@ jobs:
             detail="Already at $NEW_VERSION."
           else
             detail="No newer version found."
-          fi
-
-          if [ -n "$ISSUE_NUMBER" ]; then
-            if [ -z "$REQUEST_VER" ]; then
-              REQUEST_VER=$(sed -n 's|^version=||p' "srcpkgs/$TEMPLATE/template" | head -1 | tr -d '"')
-            fi
-            [ -n "$REQUEST_VER" ] || { echo "::error::cannot determine version for skip marker"; exit 1; }
-            printf 'Autobump: nothing to do for **%s**. %s\n\n<!-- autobump:skip for %s -->\n' \
-              "$TEMPLATE" "$detail" "$REQUEST_VER" >"$RUNNER_TEMP/comment.md"
-            gh api "repos/${GH_REPO}/issues/${ISSUE_NUMBER}/comments" \
-              --method POST -F body=@"$RUNNER_TEMP/comment.md" || true
-          else
-            echo "Autobump: nothing to do for ${TEMPLATE}. ${detail}"
           fi
 
       - name: Create branch + push
