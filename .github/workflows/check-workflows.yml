@@ -1,10 +1,14 @@
-name: Check GitHub Actions
-
+name: 📡
+run-name: >-
+  ${{
+    github.event_name == 'workflow_dispatch' && '📡 manual' ||
+    github.event_name == 'schedule' && '📡 scheduled' ||
+    '📡'
+  }}
 on:
   schedule:
     - cron: '0 6 * * 1'
   workflow_dispatch:
-
 permissions:
   contents: read
 

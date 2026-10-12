@@ -1,4 +1,10 @@
-name: update files
+name: ⏫
+run-name: >-
+  ${{
+    github.event_name == 'push' && format('⏫ {0}', github.event.head_commit.message) ||
+    github.event_name == 'workflow_dispatch' && '⏫ manual' ||
+    '⏫'
+  }}
 on:
   push:
     branches: [OCO]
@@ -10,10 +16,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
-
 concurrency:
   group: update-files-${{ github.ref }}
   cancel-in-progress: false
+
 jobs:
   list-templates:
     runs-on: ubuntu-latest

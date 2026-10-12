@@ -1,11 +1,9 @@
 name: 🧹
 run-name: >-
   ${{
-    inputs.packages != '' &&
-    format('🧹 {0}', inputs.packages) ||
+    inputs.packages != '' && format('🧹 {0}', inputs.packages) ||
     '🧹 auto-detect'
   }}
-
 on:
   workflow_call:
     inputs:

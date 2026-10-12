@@ -1,4 +1,11 @@
-name: scan updates
+name: 🔬
+run-name: >-
+  ${{
+    github.event_name == 'workflow_dispatch' && (inputs.pkg != '' && format('🔬 {0}', inputs.pkg) ||
+     '🔬 whole') ||
+    github.event_name == 'schedule' && '🔬 scheduled' ||
+    '🔬'
+  }}
 on:
   schedule:
     - cron: '17 4 * * *'

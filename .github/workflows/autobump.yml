@@ -1,12 +1,8 @@
 name: 🛰️
 run-name: >-
   ${{
-    github.event_name == 'workflow_dispatch' &&
-    format('🛰️ {0}', inputs.pkg) ||
-    github.event_name == 'issues' &&
-    format('🛰️ {0} (#{1})',
-      github.event.issue.title,
-      github.event.issue.number) ||
+    github.event_name == 'workflow_dispatch' && format('🛰️ {0}', inputs.pkg) ||
+    github.event_name == 'issues' && format('🛰️ {0} (#{1})', github.event.issue.title, github.event.issue.number) ||
     '🛰️'
   }}
 on:
