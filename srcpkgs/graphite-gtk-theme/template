@@ -1,15 +1,15 @@
 # Template file for 'graphite-gtk-theme'
 pkgname=graphite-gtk-theme
-version=2025.07.06
+version=2026.08.23
 revision=1
-hostmakedepends="sassc"
+hostmakedepends="sassc gnome-shell"
 depends="sassc"
 short_desc="Material design inspired GTK theme with light and dark variants"
 maintainer="zenobit <zen@osowoso.org>"
 license="GPL-3.0-or-later"
 homepage="https://github.com/vinceliuice/Graphite-gtk-theme"
 distfiles="https://github.com/vinceliuice/Graphite-gtk-theme/archive/refs/tags/${version//./-}.tar.gz"
-checksum=fb22ae695ca0702a3309a6ed4ed49f4e5a24ba346f0196ce213ad4a217dd9f15
+checksum=a46a5c4bd9562332221c504a58da0d6f4d729c8a74ab26e002b41516df52acb9
 nostrip=yes
 _themedir="usr/share/themes"
 _colors="purple pink red orange yellow green teal blue"
