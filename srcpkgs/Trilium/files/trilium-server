@@ -1,2 +1,2 @@
 #!/usr/bin/env sh
-exec node /usr/lib/trilium/dist/main.cjs "$@"
+exec node /usr/lib/trilium/dist/main.mjs "$@"
