@@ -1,7 +1,7 @@
 # Template file for 'noctalia'
 pkgname=noctalia
 version=5.2.1
-revision=1
+revision=2
 build_style=meson
 build_helper=qemu
 hostmakedepends="pkgconf wayland-devel"
@@ -16,7 +16,7 @@ depends="git sound-theme-freedesktop"
 checkdepends="git dejavu-fonts-ttf dbus"
 short_desc="Sleek, customizable desktop shell crafted for Wayland"
 maintainer="Coolllyn <leanhduc673@gmail.com>"
-license="MIT"
+license="MIT AND Apache-2.0"
 homepage="https://noctalia.dev"
 changelog="https://github.com/noctalia-dev/noctalia/releases"
 distfiles="https://github.com/noctalia-dev/noctalia/archive/refs/tags/v${version}.tar.gz"
@@ -37,6 +37,13 @@ fi
 
 post_install() {
 	vlicense LICENSE
+	vlicense third_party/fzy/LICENSE fzy.LICENSE
+	vlicense third_party/luau/LICENSE luau.LICENSE
+	vlicense third_party/wuffs/LICENSE-MIT wuffs.LICENSE
+	vlicense third_party/material_color_utilities/LICENSE material_color_utilities.LICENSE
+	vlicense third_party/luau/LICENSE.txt luau.LICENSE
+	vlicense third_party/luau/lua_LICENSE.txt luau.lua.LICENSE
+	vlicense assets/fonts/tabler-icons-license.txt tabler-icons.LICENSE
 	vsconf example.toml
 
 	for shell in bash fish zsh; do
