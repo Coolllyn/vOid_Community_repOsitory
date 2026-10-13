@@ -36,6 +36,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.BOT }}
 
       - name: Run symlink lint
         run: |
