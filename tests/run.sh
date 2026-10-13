@@ -792,6 +792,89 @@ fi
 
 echo '== _check_nocross_chain =='
 
+echo '== build workflow package detection =='
+
+# Execute the real Detect changed packages run block from the source template,
+# rather than a reimplementation. The isolated fixture and fake git make the
+# immutable-before-SHA failure paths deterministic and network-free.
+_detect_wd=$(mktemp -d)
+mkdir -p "$_detect_wd/bin" "$_detect_wd/srcpkgs/alpha" \
+	"$_detect_wd/srcpkgs/beta" "$_detect_wd/srcpkgs/alias-parent" "$_detect_wd/src"
+cp "$SCRIPT_DIR/src/pkg-helpers.sh" "$_detect_wd/src/pkg-helpers.sh"
+: > "$_detect_wd/srcpkgs/alpha/template"
+: > "$_detect_wd/srcpkgs/beta/template"
+: > "$_detect_wd/srcpkgs/alias-parent/template"
+ln -s alias-parent "$_detect_wd/srcpkgs/alias-child"
+cat > "$_detect_wd/bin/git" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >> "$GIT_LOG"
+case "$1" in
+	cat-file|fetch) exit 1 ;;
+	*) exit 1 ;;
+esac
+EOF
+chmod +x "$_detect_wd/bin/git"
+
+# Extract precisely this step's shell body through the matrix output line.
+awk '
+	/^          \. src\/pkg-helpers\.sh$/ { p=1 }
+	p { sub(/^          /, ""); print }
+	p && /echo "matrix=/ { exit }
+' "$SCRIPT_DIR/src/build.yml.in" > "$_detect_wd/detect.sh"
+
+_run_detect_case() {
+	_case_name=$1 _before=$2
+	mkdir -p "$_detect_wd/out-$_case_name"
+	: > "$_detect_wd/git-$_case_name.log"
+	(
+		cd "$_detect_wd" || exit 1
+		PATH="$_detect_wd/bin:$PATH_BACKUP"
+		GIT_LOG="$_detect_wd/git-$_case_name.log"
+		GITHUB_OUTPUT="$_detect_wd/out-$_case_name/output"
+		GITHUB_STEP_SUMMARY="$_detect_wd/out-$_case_name/summary"
+		GITHUB_SERVER_URL=https://example.invalid GITHUB_REPOSITORY=o/r GITHUB_REF_NAME=OCO
+		INPUT_ALL=false INPUT_TEMPLATE='' INPUT_TEMPLATES='' INPUT_RUNNER=amd64
+		EVENT_NAME=push CURRENT_BRANCH=OCO PUSH_BEFORE="$_before"
+		PUSH_AFTER=after PR_BASE_SHA='' PR_HEAD_SHA=''
+		export PATH GIT_LOG GITHUB_OUTPUT GITHUB_STEP_SUMMARY GITHUB_SERVER_URL
+		export GITHUB_REPOSITORY GITHUB_REF_NAME INPUT_ALL INPUT_TEMPLATE INPUT_TEMPLATES
+		export INPUT_RUNNER EVENT_NAME CURRENT_BRANCH PUSH_BEFORE PUSH_AFTER PR_BASE_SHA PR_HEAD_SHA
+		bash ./detect.sh
+	)
+}
+
+_nonzero_before=1234567890abcdef1234567890abcdef12345678
+_run_detect_case unavailable "$_nonzero_before" >/dev/null 2>&1; _detect_rc=$?
+it 'unavailable immutable OCO base executes the workflow step'
+assert_rc "$_detect_rc" 0
+_detected=$(grep '^packages=' "$_detect_wd/out-unavailable/output" | cut -d= -f2-)
+it 'unavailable immutable OCO base builds every real package'
+assert_eq "$_detected" 'alias-parent alpha beta'
+it 'unavailable immutable OCO base filters symlink aliases'
+case " $_detected " in *' alias-child '*) _has_alias=1 ;; *) _has_alias=0 ;; esac
+assert_eq "$_has_alias" '0'
+it 'unavailable immutable OCO base infers no removals'
+assert_eq "$(grep '^removed=' "$_detect_wd/out-unavailable/output" | cut -d= -f2-)" ''
+it 'unavailable immutable OCO base produces a non-empty matrix'
+assert_eq "$(grep '^matrix=' "$_detect_wd/out-unavailable/output" | grep -c '"config":\[{' ; true)" '1'
+it 'unavailable immutable OCO base fetches only the exact event SHA'
+assert_eq "$(grep -c '^fetch --no-tags origin ' "$_detect_wd/git-unavailable.log")" '1'
+assert_eq "$(grep '^fetch ' "$_detect_wd/git-unavailable.log" | cut -d' ' -f4)" "$_nonzero_before"
+
+_zero_sha=0000000000000000000000000000000000000000
+_run_detect_case initial "$_zero_sha" >/dev/null 2>&1; _detect_rc=$?
+it 'zero-SHA initial OCO push executes the workflow step'
+assert_rc "$_detect_rc" 0
+it 'zero-SHA initial OCO push builds all real packages and no aliases'
+assert_eq "$(grep '^packages=' "$_detect_wd/out-initial/output" | cut -d= -f2-)" 'alias-parent alpha beta'
+it 'zero-SHA initial OCO push infers no removals'
+assert_eq "$(grep '^removed=' "$_detect_wd/out-initial/output" | cut -d= -f2-)" ''
+it 'zero-SHA initial OCO push produces a non-empty matrix'
+assert_eq "$(grep '^matrix=' "$_detect_wd/out-initial/output" | grep -c '"config":\[{' ; true)" '1'
+it 'zero-SHA initial OCO push does not attempt a git fetch'
+assert_eq "$(grep -c '^fetch ' "$_detect_wd/git-initial.log"; true)" '0'
+rm -rf "$_detect_wd"
+
 eval "$(awk '
   /^[[:space:]]*_check_nocross_chain\(\)/ { p=1; depth=0 }
   p { print }
