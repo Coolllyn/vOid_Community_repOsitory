@@ -1,7 +1,7 @@
 # Template file for 'umbriel-git'
 pkgname=umbriel-git
 version=0.1.0.20261011
-revision=3
+revision=4
 _commit=3854c2e7535456c63dacd71c4cfb96b2a7d6936a
 build_style=meson
 configure_args="-Dtests=disabled"
@@ -31,4 +31,5 @@ make_check=no
 
 post_install() {
 	vlicense LICENSE
+	vlicense umbrielfx/LICENSE umbrielfx.LICENSE
 }
