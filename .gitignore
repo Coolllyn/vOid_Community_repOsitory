@@ -89,6 +89,7 @@ src/__pycache__/
 !/srcpkgs/cosmic-workspaces-epoch
 !/srcpkgs/CRC-black-hole
 !/srcpkgs/CRC-brgvos
+!/srcpkgs/CRC-brgvos-testing
 !/srcpkgs/CRC-cereus-core
 !/srcpkgs/CRC-cereus-extra
 !/srcpkgs/CRC-cosmic
