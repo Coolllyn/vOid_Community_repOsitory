@@ -283,6 +283,14 @@ on:
         description: 'Multi build'
         required: false
         type: string
+      publish_target:
+        description: 'Repository destination (OCO push is always production)'
+        required: false
+        type: choice
+        default: production
+        options:
+        - production
+        - testing
 # Apply changes in src/build.yml.in instead.
 # .github/workflows/build.yml is generated from this file by `ocoman -u`.
 permissions:
@@ -293,14 +301,13 @@ permissions:
 concurrency:
   group: >-
     ${{
-      github.event_name == 'workflow_dispatch' &&
-      (inputs.all == 'true' && 'build: all packages' ||
-       inputs.template != '' && format('build: {0}', inputs.template) ||
-       inputs.templates != '' && format('build: {0}', inputs.templates)) ||
-      github.event_name == 'push' && github.event.head_commit.message ||
       github.event_name == 'pull_request' &&
-      format('{0} (#{1})', github.event.pull_request.title, github.event.pull_request.number) ||
-      'matrix build'
+      format('build: validation:{0}', github.event.pull_request.number) ||
+      github.ref == 'refs/heads/OCO' &&
+      (github.event_name == 'push' ||
+       (github.event_name == 'workflow_dispatch' && inputs.publish_target == 'production')) &&
+      'build: publish:production' ||
+      'build: publish:testing'
     }}
   cancel-in-progress: false
   queue: max
@@ -314,6 +321,8 @@ jobs:
       packages: ${{ steps.detect.outputs.packages }}
       removed: ${{ steps.detect.outputs.removed }}
       matrix: ${{ steps.detect.outputs.matrix }}
+      publish_target: ${{ steps.detect.outputs.publish_target }}
+      repository_prefix: ${{ steps.detect.outputs.repository_prefix }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -331,6 +340,7 @@ jobs:
           INPUT_TEMPLATE: ${{ inputs.template }}
           INPUT_TEMPLATES: ${{ inputs.templates }}
           INPUT_RUNNER: ${{ inputs.runner || 'auto' }}
+          INPUT_PUBLISH_TARGET: ${{ inputs.publish_target || 'production' }}
           EVENT_NAME: ${{ github.event_name }}
           CURRENT_BRANCH: ${{ github.ref_name }}
           PUSH_BEFORE: ${{ github.event.before }}
@@ -349,6 +359,21 @@ jobs:
           echo "DEBUG: CURRENT_BRANCH=$CURRENT_BRANCH"
           echo "DEBUG: PUSH_BEFORE=$PUSH_BEFORE"
           echo "DEBUG: PUSH_AFTER=$PUSH_AFTER"
+
+          # Fail closed: only an exact OCO ref may publish production, and
+          # only ordinary OCO pushes are implicitly production. Dispatch must
+          # explicitly choose production; repository_dispatch stays testing.
+          publish_target=testing
+          if [ "$GITHUB_REF" = "refs/heads/OCO" ]; then
+            if [ "$EVENT_NAME" = push ] || \
+               { [ "$EVENT_NAME" = workflow_dispatch ] && [ "$INPUT_PUBLISH_TARGET" = production ]; }; then
+              publish_target=production
+            fi
+          fi
+          repository_prefix=testing
+          [ "$publish_target" = production ] && repository_prefix=''
+          echo "publish_target=$publish_target" >> "$GITHUB_OUTPUT"
+          echo "repository_prefix=$repository_prefix" >> "$GITHUB_OUTPUT"
 
           ZERO_SHA="0000000000000000000000000000000000000000"
           all_packages() {
@@ -814,6 +839,7 @@ jobs:
           XBPS_TARGET_ARCH: ${{ matrix.config.arch }}
           SURFER_TOKEN: ${{ secrets.SURFER_TOKEN }}
           SURFER_USER: ${{ secrets.SURFER_USER }}
+          SURF_PATH_PREFIX: ${{ needs.detect.outputs.repository_prefix }}
         working-directory: /void-packages/hostdir/binpkgs/
         run: |
           export PATH="/opt/xbps/usr/bin/:$PATH"
@@ -866,12 +892,13 @@ jobs:
     uses: ./.github/workflows/cleanup.yml
     with:
       packages: ${{ needs.detect.outputs.removed }}
+      repository_prefix: ${{ needs.detect.outputs.repository_prefix }}
     secrets: inherit
 
   update-status:
     name: update
     needs: [detect, build]
-    if: always() && (github.event_name == 'push' || github.event_name == 'repository_dispatch' || github.event_name == 'workflow_dispatch')
+    if: always() && needs.detect.outputs.publish_target == 'production' && (github.event_name == 'push' || github.event_name == 'repository_dispatch' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

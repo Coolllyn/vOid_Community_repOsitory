@@ -65,6 +65,7 @@ eval "$(awk '
 	/^fetch_repodata\(\)/ {p=1}
 	/^delete_remote\(\)/   {p=1}
 	/^upload_file\(\)/   {p=1}
+	/^surf_api_path\(\)/ {p=1}
 	/^prune_orphans\(\)/ {p=1}
 	/^delete_orphan_files\(\)/ {p=1}
 	/^read_template_fields/{p=1}
@@ -81,6 +82,7 @@ eval "$(awk '
 export SURF_ATTEMPTS=4 SURF_BACKOFF=0
 export SURF_DEADLINE=1500 SURF_CONNECT_TIMEOUT=20 SURF_MAX_TIME=300 SURF_BACKOFF_MAX=30
 export SURFER_URL='https://repo.osowoso.org'
+export SURF_PATH_PREFIX=''
 
 # surf_cli_init() reads _SURF_READY, which ocoman initialises at file scope.
 # The awk extractor above only pulls function bodies, so that initialisation
@@ -823,7 +825,7 @@ awk '
 ' "$SCRIPT_DIR/src/build.yml.in" > "$_detect_wd/detect.sh"
 
 _run_detect_case() {
-	_case_name=$1 _before=$2
+	_case_name=$1 _before=$2 _ref=${3:-refs/heads/OCO} _event=${4:-push} _target=${5:-production}
 	mkdir -p "$_detect_wd/out-$_case_name"
 	: > "$_detect_wd/git-$_case_name.log"
 	(
@@ -832,13 +834,13 @@ _run_detect_case() {
 		GIT_LOG="$_detect_wd/git-$_case_name.log"
 		GITHUB_OUTPUT="$_detect_wd/out-$_case_name/output"
 		GITHUB_STEP_SUMMARY="$_detect_wd/out-$_case_name/summary"
-		GITHUB_SERVER_URL=https://example.invalid GITHUB_REPOSITORY=o/r GITHUB_REF_NAME=OCO
+		GITHUB_SERVER_URL=https://example.invalid GITHUB_REPOSITORY=o/r GITHUB_REF_NAME=OCO GITHUB_REF="$_ref"
 		INPUT_ALL=false INPUT_TEMPLATE='' INPUT_TEMPLATES='' INPUT_RUNNER=amd64
-		EVENT_NAME=push CURRENT_BRANCH=OCO PUSH_BEFORE="$_before"
+		INPUT_PUBLISH_TARGET="$_target" EVENT_NAME="$_event" CURRENT_BRANCH=OCO PUSH_BEFORE="$_before"
 		PUSH_AFTER=after PR_BASE_SHA='' PR_HEAD_SHA=''
 		export PATH GIT_LOG GITHUB_OUTPUT GITHUB_STEP_SUMMARY GITHUB_SERVER_URL
-		export GITHUB_REPOSITORY GITHUB_REF_NAME INPUT_ALL INPUT_TEMPLATE INPUT_TEMPLATES
-		export INPUT_RUNNER EVENT_NAME CURRENT_BRANCH PUSH_BEFORE PUSH_AFTER PR_BASE_SHA PR_HEAD_SHA
+		export GITHUB_REPOSITORY GITHUB_REF_NAME GITHUB_REF INPUT_ALL INPUT_TEMPLATE INPUT_TEMPLATES
+		export INPUT_RUNNER INPUT_PUBLISH_TARGET EVENT_NAME CURRENT_BRANCH PUSH_BEFORE PUSH_AFTER PR_BASE_SHA PR_HEAD_SHA
 		bash ./detect.sh
 	)
 }
@@ -860,6 +862,9 @@ assert_eq "$(grep '^matrix=' "$_detect_wd/out-unavailable/output" | grep -c '"co
 it 'unavailable immutable OCO base fetches only the exact event SHA'
 assert_eq "$(grep -c '^fetch --no-tags origin ' "$_detect_wd/git-unavailable.log")" '1'
 assert_eq "$(grep '^fetch ' "$_detect_wd/git-unavailable.log" | cut -d' ' -f4)" "$_nonzero_before"
+it 'OCO push selects production with an empty path prefix'
+assert_eq "$(grep '^publish_target=' "$_detect_wd/out-unavailable/output" | cut -d= -f2-)" production
+assert_eq "$(grep '^repository_prefix=' "$_detect_wd/out-unavailable/output" | cut -d= -f2-)" ''
 
 _zero_sha=0000000000000000000000000000000000000000
 _run_detect_case initial "$_zero_sha" >/dev/null 2>&1; _detect_rc=$?
@@ -873,6 +878,23 @@ it 'zero-SHA initial OCO push produces a non-empty matrix'
 assert_eq "$(grep '^matrix=' "$_detect_wd/out-initial/output" | grep -c '"config":\[{' ; true)" '1'
 it 'zero-SHA initial OCO push does not attempt a git fetch'
 assert_eq "$(grep -c '^fetch ' "$_detect_wd/git-initial.log"; true)" '0'
+
+_run_detect_case feature 0000000000000000000000000000000000000000 refs/heads/feature push production >/dev/null 2>&1
+it 'non-OCO push always selects isolated testing path'
+assert_eq "$(grep '^publish_target=' "$_detect_wd/out-feature/output" | cut -d= -f2-)" testing
+assert_eq "$(grep '^repository_prefix=' "$_detect_wd/out-feature/output" | cut -d= -f2-)" testing
+
+_run_detect_case manual-test 0000000000000000000000000000000000000000 refs/heads/OCO workflow_dispatch testing >/dev/null 2>&1
+it 'OCO manual dispatch can explicitly select testing'
+assert_eq "$(grep '^repository_prefix=' "$_detect_wd/out-manual-test/output" | cut -d= -f2-)" testing
+
+_run_detect_case manual-prod 0000000000000000000000000000000000000000 refs/heads/OCO workflow_dispatch production >/dev/null 2>&1
+it 'OCO manual dispatch explicitly selecting production has empty prefix'
+assert_eq "$(grep '^repository_prefix=' "$_detect_wd/out-manual-prod/output" | cut -d= -f2-)" ''
+
+_run_detect_case dispatch 0000000000000000000000000000000000000000 refs/heads/OCO repository_dispatch production >/dev/null 2>&1
+it 'repository_dispatch defaults to testing even on OCO'
+assert_eq "$(grep '^repository_prefix=' "$_detect_wd/out-dispatch/output" | cut -d= -f2-)" testing
 rm -rf "$_detect_wd"
 
 eval "$(awk '
@@ -1074,6 +1096,17 @@ fi
 
 echo '== workflows: Surfer CLI only, no WebDAV =='
 
+for _workflow in "$SCRIPT_DIR/src/build.yml.in" "$SCRIPT_DIR/.github/workflows/build.yml"; do
+	it "$(basename "$_workflow") serializes whole runs by publishing destination"
+	assert_eq "$(grep -c "build: publish:production" "$_workflow")" '1'
+	assert_eq "$(grep -c "build: publish:testing" "$_workflow")" '1'
+	it "$(basename "$_workflow") isolates PR validation concurrency"
+	assert_eq "$(grep -c "format('build: validation:{0}', github.event.pull_request.number)" "$_workflow")" '1'
+	it "$(basename "$_workflow") retains max queue without cancellation"
+	assert_eq "$(grep -c 'queue: max' "$_workflow")" '1'
+	assert_eq "$(grep -c 'cancel-in-progress: false' "$_workflow")" '1'
+done
+
 # Deletes now go through the surfer CLI (REST /api/files/, fsPromises.rm), so
 # they cannot crash Surfer the way the removed WebDAV DELETE did. What must
 # stay true is that the workflows delegate to ocoman and never hand-roll a
@@ -1110,6 +1143,14 @@ assert_eq "$(grep -c '\./ocoman -p \${{' "$SCRIPT_DIR/.github/workflows/cleanup.
 assert_eq "$(grep -c '\./ocoman -p$' "$SCRIPT_DIR/.github/workflows/cleanup.yml")" '1'
 # ARCH must come from the job env instead
 assert_eq "$(grep -c 'ARCH: \${{ matrix\.arch }}' "$SCRIPT_DIR/.github/workflows/cleanup.yml")" '1'
+it 'cleanup workflow accepts and exports the selected repository prefix'
+assert_eq "$(grep -c 'SURF_PATH_PREFIX: \${{ inputs.repository_prefix }}' "$SCRIPT_DIR/.github/workflows/cleanup.yml")" '1'
+it 'standalone cleanup defaults to the isolated test path'
+assert_eq "$(grep -A12 '^  workflow_dispatch:' "$SCRIPT_DIR/.github/workflows/cleanup.yml" | grep -c 'default: testing')" '1'
+it 'standalone cleanup rejects production from any ref other than exact OCO'
+assert_eq "$(grep -c "if: inputs.repository_prefix == '' && github.ref != 'refs/heads/OCO'" "$SCRIPT_DIR/.github/workflows/cleanup.yml")" '1'
+it 'build passes its selected repository prefix to cleanup'
+assert_eq "$(grep -c 'repository_prefix: \${{ needs.detect.outputs.repository_prefix }}' "$SCRIPT_DIR/.github/workflows/build.yml")" '1'
 
 it 'cleanup.yml cannot hang for hours on a dead Surfer'
 assert_eq "$(grep -c '^    timeout-minutes: [0-9]' "$SCRIPT_DIR/.github/workflows/cleanup.yml")" '1'
@@ -1373,6 +1414,44 @@ it '...and never leaves the delete without -y to skip the prompt'
 assert_eq "$(grep -c '^del -y ' "$_SARGV"; true)" '1'
 it '...and issues no MKCOL, which the CLI does not have'
 assert_eq "$(grep -ci 'mkcol' "$_SARGV"; true)" '0'
+
+SURF_PATH_PREFIX=testing
+printf 'listing:%s\n' "$_LISTING" > "$_SSCRIPT"
+_cli_reset
+printf 'listing:%s\n' "$_LISTING" > "$_SSCRIPT"
+it 'testing fetch/list paths are prefixed'
+fetch_remote_list '/x86_64' >/dev/null 2>&1
+assert_eq "$(cat "$_SARGV")" 'get /testing/x86_64'
+
+printf 'bytes:%s\n' "$_REPO_BODY" > "$_SSCRIPT"
+_cli_reset
+printf 'bytes:%s\n' "$_REPO_BODY" > "$_SSCRIPT"
+it 'testing repodata fetch path is prefixed'
+fetch_repodata '/x86_64/x86_64-repodata' "$_out" >/dev/null 2>&1
+assert_eq "$(cat "$_SARGV")" 'get /testing/x86_64/x86_64-repodata'
+
+_cli_reset
+printf 'ok\n' > "$_SSCRIPT"
+it 'testing package put path is prefixed'
+upload_file "$_pkg" '/x86_64' >/dev/null 2>&1
+assert_eq "$(cat "$_SARGV")" "put $_pkg /testing/x86_64/"
+
+_cli_reset
+printf 'ok\n' > "$_SSCRIPT"
+it 'testing cleanup/delete path is prefixed'
+delete_remote '/x86_64/foo-1.0_1.x86_64.xbps' >/dev/null 2>&1
+assert_eq "$(cat "$_SARGV")" 'del -y /testing/x86_64/foo-1.0_1.x86_64.xbps'
+it 'testing arch-page URL is prefixed while retaining the Surfer host'
+assert_eq "$(SURFER_URL="$SURFER_URL" surf_api_path '/x86_64')" '/testing/x86_64'
+it 'invalid slash-only prefix fails closed instead of mapping to production'
+SURF_PATH_PREFIX=/; surf_api_path '/x86_64' >/dev/null 2>&1; _rc=$?
+assert_rc "$_rc" 1
+SURF_PATH_PREFIX=testing
+it 'arch-page generation derives public repository URL through prefix mapping'
+assert_eq "$(grep -c '_repo_path=$(surf_api_path "/\${_arch}")' "$SCRIPT_DIR/ocoman")" '1'
+it 'arch-page upload uses the prefixed upload helper'
+assert_eq "$(grep -c 'upload_file "\$_out" "/\${_arch}"' "$SCRIPT_DIR/ocoman")" '1'
+SURF_PATH_PREFIX=''
 
 # End to end through the fake: the delete_remote stub from the prune_orphans
 # section is gone, so this drives the real one into surfer del.

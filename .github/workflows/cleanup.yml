@@ -14,6 +14,11 @@ on:
         required: false
         type: string
         default: ''
+      repository_prefix:
+        description: 'Surfer API/public path prefix (empty for production)'
+        required: false
+        type: string
+        default: ''
   workflow_dispatch:
     inputs:
       packages:
@@ -22,6 +27,11 @@ on:
           Empty = auto-detect packages without a template
         required: false
         default: ''
+      repository_prefix:
+        description: 'Surfer API/public path prefix (empty for production)'
+        required: false
+        type: string
+        default: testing
 permissions:
   contents: read
   packages: read
@@ -52,12 +62,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Refuse production cleanup from non-OCO refs
+        if: inputs.repository_prefix == '' && github.ref != 'refs/heads/OCO'
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" != refs/heads/OCO ]; then
+            echo "::error::Production cleanup is only allowed on OCO (got: $REF)"
+            exit 1
+          fi
+
       - name: Purge removed packages from repodata
         env:
           SURFER_TOKEN: ${{ secrets.SURFER_TOKEN }}
           SURFER_USER: ${{ secrets.SURFER_USER }}
           PRIV_KEY: ${{ secrets.PRIV_KEY }}
           SURF_PURGE_PACKAGES: ${{ inputs.packages }}
+          SURF_PATH_PREFIX: ${{ inputs.repository_prefix }}
         run: |
           set -eu
           export PATH="/opt/xbps/usr/bin/:$PATH"
