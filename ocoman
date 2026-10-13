@@ -1058,6 +1058,9 @@ target_serve() {
 
 do_upload() {
 	[ -n "$ARCH" ]         || fatal 'ARCH is required'
+	# xbps-rindex selects repodata from XBPS_ARCH, which differs from the
+	# runner's native architecture for cross-arch cleanup jobs.
+	export XBPS_ARCH="$ARCH" XBPS_TARGET_ARCH="$ARCH"
 	surf_auth_check
 	[ -n "$PRIV_KEY" ]     || fatal 'PRIV_KEY is required'
 

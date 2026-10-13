@@ -98,6 +98,24 @@ it 'hyphenated name';       assert_eq "$(pkg_name 'python3-PyGithub-1.59_1.x86_6
 it 'musl arch suffix';      assert_eq "$(pkg_name 'foo-1.2_1.aarch64-musl')"    'foo'
 it 'caller stripped .xbps'; assert_eq "$(pkg_name 'foo-1.0_1.x86_64')"          'foo'
 it 'caller passed .xbps';   assert_eq "$(pkg_name 'foo-1.0_1.x86_64.xbps')"     'foo'
+echo '== list_srcpkgs =='
+mkdir -p srcpkgs/list-parent srcpkgs/list-plain
+ln -s list-parent srcpkgs/list-alias
+ln -s missing-target srcpkgs/list-broken
+it 'lists a symlink to an existing package directory'
+assert_eq "$(list_srcpkgs srcpkgs | grep -Fx list-alias)" 'list-alias'
+it 'excludes a dangling package symlink'
+assert_eq "$(list_srcpkgs srcpkgs | grep -Fx list-broken)" ''
+_main_list=$(printf '%s\n' list-alias list-parent)
+_current_file=$(mktemp)
+_main_file=$(mktemp)
+list_srcpkgs srcpkgs > "$_current_file"
+printf '%s\n' "$_main_list" > "$_main_file"
+it 'fallback package diff does not classify a valid alias as removed'
+assert_eq "$(grep -Fxvf "$_current_file" "$_main_file" || true)" ''
+rm -f "$_current_file" "$_main_file"
+
+rm -rf srcpkgs/list-parent srcpkgs/list-plain srcpkgs/list-alias srcpkgs/list-broken
 
 echo '== pkg_arch_ok =='
 
